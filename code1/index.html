@@ -1,0 +1,52 @@
+<script src=lib1.js></script>
+
+<canvas id='canvas1' width='640' height='640'></canvas>
+<br><br>
+<div>Press 'G' to toggle the grid.</div>
+<div>Higher x position (right) makes more inner radius bumps.</div>
+<div>Higher y position (up) makes more outer radius bumps.</div>
+
+<script id='my_vertex_shader' type='x-shader/x-vertex'>
+   attribute vec3 aPosition;
+   varying   vec3 vPosition;
+   void main() {
+      gl_Position = vec4(aPosition, 1.0);
+      vPosition = aPosition;
+   }
+</script>
+
+<script id='my_fragment_shader' type='x-shader/x-fragment'>
+   precision mediump float;
+   const float gridSize = 10.0;
+   uniform float uTime;
+   uniform vec3  uCursor;
+   uniform int showGrid;
+   varying vec3  vPosition;
+   void main() {
+      float M_PI = 3.1415926535897932384626433832795;
+      vec3 color = vec3(0., 0., 0.);
+      float a = atan(vPosition.y, vPosition.x);
+      float inner_r = 0.4 + 0.15 * cos(floor(gridSize * (uCursor.x + 1.0))  * (a - M_PI * sin(uTime / M_PI)));
+      float outer_r = 0.8 + 0.15 * sin(floor(gridSize * (uCursor.y + 1.0)) * (a + M_PI * sin(uTime / M_PI)));
+      float r = sqrt(vPosition.x * vPosition.x + vPosition.y * vPosition.y);
+      if (r > inner_r && r < outer_r) {
+        float nRings = 5.0 - 4.0 * cos(uTime);
+        float red = sin(nRings * (r - inner_r) / (outer_r - inner_r) * M_PI);
+        float green = sin(nRings * (r - inner_r) / (outer_r - inner_r) * M_PI + M_PI / 3.0);
+        float blue = sin(nRings * (r - inner_r) / (outer_r - inner_r) * M_PI + 2.0 * M_PI / 3.0);
+        color = vec3(red,green,blue);
+      }
+      if (showGrid == 1 &&
+          (abs(vPosition.x * gridSize - floor(vPosition.x * gridSize)) < 0.1 ||
+           abs(vPosition.y * gridSize - floor(vPosition.y * gridSize)) < 0.1)) {
+        color = vec3(0.3, 0.3, 0.3);
+      }
+      gl_FragColor = vec4(color, 1.);
+   }
+</script>
+
+<script>
+start_gl('canvas1', document.getElementById('my_vertex_shader'  ).innerHTML,
+                    document.getElementById('my_fragment_shader').innerHTML);
+</script>
+
