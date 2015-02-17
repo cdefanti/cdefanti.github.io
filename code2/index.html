@@ -21,11 +21,11 @@
    uniform vec3  uCursor;
    varying vec3  vPosition;
 
-   vec4 sphere;
-   vec3 material;
+   vec4 spheres[4];
+   vec3 materials[4];
 
-   vec3 Lrgb;
-   vec3 Ldir;
+   vec3 Lrgb[4];
+   vec3 Ldir[4];
 
    // Compute intersection of a ray with a sphere, if any.  Return t.
    // If there is no intersection, return 10000.
@@ -35,10 +35,11 @@
       // YOU NEED TO COMPUTE t, BY SETTING UP AND THEN SOLVING A QUADRATIC EQUATION.
 
       // a = 1.0, so we don't really need it..
-      float b = 2 * (dot(W, V - vec3(S)));
+      float b = 2.0 * (dot(W, V - vec3(S)));
       float c = (dot(V - vec3(S), V - vec3(S)) - S.w * S.w);
-      if (b*b - 4 * a * c >= 0) {
-        return (-b + (b * b - 4 * c)) / 2.0;
+      if (b*b - 4.0 * c >= 0.0) {
+        return min((-b + sqrt(b * b - 4.0 * c)) / 2.0,
+                   (-b - sqrt(b * b - 4.0 * c)) / 2.0);
       }
 
       return 10000.;
@@ -56,30 +57,69 @@
 
       // FOR THE AMBIENT COMPONENT OF THE DIFFUSE SHADING, YOU CAN
       // USE A SIMPLE APPROXIMATION SUCH AS: ambient = material / 5.;
+      vec3 normal = (point - sphere.xyz) / sphere.w;
+      vec3 amb = material / 15.0;
+      vec3 diff = vec3(0.0, 0.0, 0.0);
+      vec3 spec = vec3(0.0, 0.0, 0.0);
+      for (int i = 0; i < 4; i++) {
+        diff = diff + Lrgb[i] * material * max(0.0, dot(normal, Ldir[i]));
+        vec3 eye = -normalize(point);
+        spec = spec + material * pow(max(0.0, dot(-Ldir[i], (eye - 2.0 * normal * (max(0.0, dot(normal, eye)))))), 30.0);
+      }
 
-      return color;
+      return amb + diff + spec;
    }
 
    void main(void) {
+      float M_PI = 3.1415926535897932384626433832795;
       vec2 c = uCursor.xy;
 
-      Lrgb = vec3(1.,.5,0.);
-      Ldir = normalize(vec3(c.x, c.y, 1. - 2. * dot(c, c)));
+      Lrgb[0] = vec3(.4,.4,.4);
+      Ldir[0] = normalize(vec3(c.x, c.y, 1. - 2. * dot(c, c)));
+      Lrgb[1] = vec3(1.,0.,0.);
+      Ldir[1] = normalize(vec3(0.0, 1.0, 0.0));
+      Lrgb[2] = vec3(0.,1.,0.);
+      Ldir[2] = normalize(vec3(1.0, -1.0, 0.0));
+      Lrgb[3] = vec3(0.,0.,1.);
+      Ldir[3] = normalize(vec3(-1.0, -1.0, 0.0));
 
       // YOU NEED TO COMPUTE V AND W TO CREATE THE RAY FOR THIS PIXEL,
       // USING vPosition.x AND vPosition.y.
 
       vec3 V, W;
+      V = vec3(0., 0., 0.);
+      W = normalize(vec3(vPosition.x, vPosition.y, -1.0));
 
       // YOU NEED TO SET x,y,z AND r FOR sphere.
+      spheres[0] = vec4(0.0, 0.0, -8.0, 3.0);
+      spheres[1] = vec4(0.0 + 4.0 * cos(uTime), cos(uTime * 3.0), -8.0 + 4.0 * sin(uTime), 0.5);
+      spheres[2] = vec4(0.0 + 4.0 * cos(uTime + 2.0 * M_PI / 3.0), cos(uTime * 5.0), -8.0 + 4.0 * sin(uTime + 2.0 * M_PI / 3.0), 0.5);
+      spheres[3] = vec4(0.0 + 4.0 * cos(uTime + 4.0 * M_PI / 3.0), cos(uTime * 7.0), -8.0 + 4.0 * sin(uTime + 4.0 * M_PI / 3.0), 0.5);
 
       // YOU NEED TO SET r,g,b FOR material.
+      materials[0] = vec3(0.3, 0.3, 0.3);
+      materials[1] = vec3(0.8, 0.3, 0.3);
+      materials[2] = vec3(0.3, 0.8, 0.3);
+      materials[3] = vec3(0.3, 0.3, 0.8);
 
-      vec3 color = vec3(0., 0., 0.);
-      float t = raySphere(V, W, sphere);
-      if (t < 10000.)
-         color = shadeSphere(V + t * W, sphere, material);
+      vec3 color = vec3(0.0, 0.0, 0.0);
+      int hit_index = -1;
+      float t = 10000.0;
+      for (int i = 0 ; i < 4 ; i++) {
+        float t_new = raySphere(V, W, spheres[i]);
+        if (t_new < 10000. && t_new < t) {
+          hit_index = i;
+          t = t_new;
+        }
+      }
 
+      if (hit_index != -1)
+        for (int i = 0; i < 4; i++) {
+          if (hit_index == i)
+            color = shadeSphere(V + t * W, spheres[i], materials[i]);
+        }
+
+      //gl_FragColor = vec4(1.0-sqrt(t)/100.0, 0.0, 0.0, 1.); // Do Gamma correction.
       gl_FragColor = vec4(sqrt(color), 1.); // Do Gamma correction.
    }
 </script>
