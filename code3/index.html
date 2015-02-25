@@ -1,0 +1,261 @@
+<script src=lib1.js></script>
+
+<body bgcolor=black>
+<center>
+<td><canvas id='canvas1' width=400 height=400></canvas></td>
+</center>
+</body>
+
+<script id='my_vertex_shader' type='x-shader/x-vertex'>
+   attribute vec3 aPosition;
+   varying   vec3 vPosition;
+   void main() {
+      gl_Position = vec4(aPosition, 1.0);
+      vPosition = aPosition;
+   }
+</script>
+
+<script id='my_fragment_shader' type='x-shader/x-fragment'>
+   precision mediump float;
+   uniform float uTime;
+   uniform vec3  uCursor;
+   varying vec3  vPosition;
+
+   vec3 materials[5];
+   // defining a half sphere..
+   vec4 hSphere;
+   // ..and the normal of it's "flat" surface
+   vec3 hSphereN;
+
+   vec3 Lrgb[1];
+   vec3 Ldir[1];
+
+   struct intersection {
+     vec4 sphere1;
+     vec4 sphere2;
+   };
+   intersection isec[5];
+
+   bool inShadow(vec3 point);
+
+   // Compute intersection of a ray with a sphere, if any.  Return t.
+   // If there is no intersection, return 10000.
+
+   float raySphere(vec3 V, vec3 W, vec4 S) {
+      
+      // YOU NEED TO COMPUTE t, BY SETTING UP AND THEN SOLVING A QUADRATIC EQUATION.
+
+      // a = 1.0, so we don't really need it..
+      float b = 2.0 * (dot(W, V - vec3(S)));
+      float c = (dot(V - vec3(S), V - vec3(S)) - S.w * S.w);
+      if (b*b - 4.0 * c >= 0.0) {
+        float val1 = (-b + sqrt(b * b - 4.0 * c)) / 2.0;
+        float val2 = (-b - sqrt(b * b - 4.0 * c)) / 2.0;
+        if (min(val1, val2) >= 0.0) {
+          return min(val1, val2);
+        } else {
+          return max(val1, val2);
+        }
+      }
+
+      return 10000.;
+   }
+
+   float rayHalfSphere(vec3 V, vec3 W, vec4 hS, vec3 hSN) {
+      // t for plane-line intersection btwn. plane of flat surface of 
+      // half-sphere and line V+Wt
+      float pl_t;
+      if (dot(hSN, W) == 0.0) {
+        // if the normal is orthogonal with our view line, we can't see the flat surface
+        pl_t = 10000.;
+      } else {
+        pl_t = dot(hS.xyz - V, hSN) / dot(hSN, W);
+      }
+
+      // t for sphere-line intersection btwn. curved surface of
+      // half-sphere and line V+Wt
+      float s_t = raySphere(V, W, hS);
+
+      // if we are pointing at the flat surface, we hit that
+      if (pl_t > 0.0 &&
+         (pl_t > s_t && dot(W, hSN) < 0.0) ||
+         (pl_t < s_t && dot(W, hSN) > 0.0)) {
+        if (distance(V + W * pl_t, hS.xyz) < hS.w) {
+          return pl_t;
+        }
+      }
+      // otherwise, we have hit the curved surface
+      else {
+        return s_t;
+      }
+
+      return 10000.;
+   }
+
+   float rayIntersection(vec3 V, vec3 W, intersection isec) {
+     float rs1 = raySphere(V, W, isec.sphere1);
+     float rs2 = raySphere(V, W, isec.sphere2);
+     if (rs1 == 10000. || rs2 == 10000.) return 10000.;
+     return min(rs1, rs2);
+   }
+
+   // Diffusely shade a sphere.
+   //    point is the x,y,z position of the surface point.
+   //    sphere is the x,y,z,r definition of the sphere.
+   //    material is the r,g,b color of the sphere.
+
+   vec3 shadeSphere(vec3 point, vec4 sphere, vec3 material) {
+      vec3 normal = (point - sphere.xyz) / sphere.w;
+      vec3 amb = material / 15.0;
+      if (inShadow(point)) return amb;
+      vec3 diff = vec3(0.0, 0.0, 0.0);
+      vec3 spec = vec3(0.0, 0.0, 0.0);
+      diff = diff + Lrgb[0] * material * max(0.0, dot(normal, Ldir[0]));
+      vec3 eye = -normalize(point);
+      vec3 r = 2.0 * dot(normal, Ldir[0]) * normal - Ldir[0];
+      spec = spec + Lrgb[0] * material * pow(max(0.0, dot(eye, r)), 30.0);
+
+      return amb + diff + spec;
+   }
+
+   vec3 shadeIntersection(vec3 point, intersection isec, vec3 material) {
+    if (distance(isec.sphere1.xyz, point) < distance(isec.sphere2.xyz, point)) {
+      return shadeSphere(point, isec.sphere1, material);
+    }
+    return shadeSphere(point, isec.sphere2, material);
+   }
+
+   vec3 shadePlane(vec3 point, vec3 normal, vec3 material, bool do_reflect) {
+      vec3 amb = material / 15.0;
+      vec3 diff = vec3(0.0, 0.0, 0.0);
+      vec3 spec = vec3(0.0, 0.0, 0.0);
+      vec3 ref = vec3(0., 0., 0.);
+      diff = diff + Lrgb[0] * material * max(0.0, dot(normal, Ldir[0]));
+      vec3 eye = -normalize(point);
+      vec3 r = 2.0 * dot(normal, Ldir[0]) * normal - Ldir[0];
+      spec = spec + Lrgb[0] * material * pow(max(0.0, dot(eye, r)), 3.0);
+
+      // reflection of eye across normal
+      vec3 r_en = 2.0 * dot(eye, normal) * normal - eye;
+      if (do_reflect) {
+        int hit_index = -1;
+        float t = 10000.0;
+        for (int i = 0 ; i < 5 ; i++) {
+          float t_new = rayIntersection(point, -r_en, isec[i]);
+          if (t_new < 0.0 && t_new < 10000. && t_new < t) {
+            hit_index = i;
+            t = t_new;
+          }
+        }
+
+        if (hit_index != -1) {
+          for (int i = 0; i < 5; i++) {
+            if (hit_index == i)
+              ref = shadeIntersection(point + t * -r_en, isec[i], materials[i]);
+          }
+        }
+      }
+      vec3 color = amb + diff + spec;
+      if (inShadow(point)) color = amb;
+      color = mix(color, ref, 0.5);
+
+      return color;
+   }
+
+   vec3 shadeHalfSphere(vec3 point, vec4 halfSphere, vec3 halfSphereN, vec3 materialFlat, vec3 materialCurve) {
+      // first, check if we are on the flat side or not (is the vector from sphere center
+      // and point almost orthogonal to the half-sphere normal?)
+      vec3 normal;
+      vec3 material;
+      if (abs(dot(point - halfSphere.xyz, halfSphereN)) < 0.01) {
+        // let's make this surface reflective
+        return shadePlane(point, halfSphereN, materialFlat, true);
+      } else {
+        return shadeSphere(point, halfSphere, materialCurve);
+      }
+   }
+   bool inShadow(vec3 point) {
+      // shadows
+      float e = 0.01;
+      float st = 10000.0;
+      for (int i = 0 ; i < 5 ; i++) {
+        float t_new = rayIntersection(point, Ldir[0], isec[i]);
+        if (t_new > e && t_new < 10000. && t_new < st) {
+          st = t_new;
+        }
+      }
+
+      if (st == 10000.) {
+        st = rayHalfSphere(point, Ldir[0], hSphere, hSphereN);
+        if (st > e && st < 10000.) {
+          return true;
+        }
+      } else {
+        return true;
+      }
+      return false;
+    }
+
+   void main(void) {
+      float M_PI = 3.1415926535897932384626433832795;
+      vec2 c = uCursor.xy;
+
+      Lrgb[0] = vec3(.4,.4,.4);
+      Ldir[0] = normalize(vec3(1., 1., 1.));
+      //Ldir[0] = normalize(vec3(c.x, c.y, 1. - 2. * dot(c, c)));
+
+      // YOU NEED TO COMPUTE V AND W TO CREATE THE RAY FOR THIS PIXEL,
+      // USING vPosition.x AND vPosition.y.
+
+      vec3 V, W;
+      V = vec3(0., 0., 0.);
+      W = normalize(vec3(vPosition.x, vPosition.y, -1.0));
+
+      hSphere = vec4(0.0,-1.0,-8.0,3.0);
+      hSphereN = normalize(vec3(c.x, c.y, 1. - 2. * dot(c, c)));
+      
+      vec3 hSphereFlatMat = vec3(0.1, 0.1, 0.1);
+      vec3 hSphereCurveMat = vec3(0.5, 0.5, 1.0);
+      // YOU NEED TO SET x,y,z AND r FOR sphere.
+      for (int i = 0; i < 5; i++) {
+        float fi = float(i);
+        isec[i].sphere1 = vec4(4.0 * cos(uTime + 2.0 * fi * M_PI / 5.0), 1.0 + sin(5.0 * uTime), -8.0 + 4.0 * sin(uTime + 2.0 * fi * M_PI / 5.0), 1.0);
+        isec[i].sphere2 = vec4(4.0 * cos(uTime + 2.0 * fi * M_PI / 5.0), 1.0, -8.0 + 4.0 * sin(uTime + 2.0 * fi * M_PI / 5.0), 1.0);
+      }
+
+      // YOU NEED TO SET r,g,b FOR material.
+      materials[0] = vec3(0.8, 0.8, 0.3);
+      materials[1] = vec3(0.8, 0.3, 0.3);
+      materials[2] = vec3(0.3, 0.8, 0.3);
+      materials[3] = vec3(0.3, 0.3, 0.8);
+      materials[4] = vec3(0.3, 0.8, 0.8);
+
+      vec3 color = vec3(0.0, 0.0, 0.0);
+      int hit_index = -1;
+      float t = 10000.0;
+      for (int i = 0 ; i < 5 ; i++) {
+        float t_new = rayIntersection(V, W, isec[i]);
+        if (t_new < 10000. && t_new < t) {
+          hit_index = i;
+          t = t_new;
+        }
+      }
+
+      float hst = rayHalfSphere(V, W, hSphere, hSphereN);
+      if (hst < 10000. && hst < t) {
+        color = shadeHalfSphere(V + W * hst, hSphere, hSphereN, hSphereFlatMat, hSphereCurveMat);
+      } else if (hit_index != -1) {
+        for (int i = 0; i < 5; i++) {
+          if (hit_index == i)
+            color = shadeIntersection(V + t * W, isec[i], materials[i]);
+        }
+      }
+      gl_FragColor = vec4(sqrt(color), 1.); // Do Gamma correction.
+   }
+</script>
+
+<script>
+start_gl('canvas1', document.getElementById('my_vertex_shader'  ).innerHTML,
+                    document.getElementById('my_fragment_shader').innerHTML);
+</script>
+
