@@ -70,6 +70,15 @@
      return 2.2 * mix(mix(nz.x,nz.z,f.y), mix(nz.y,nz.w,f.y), f.x);
    }
 
+   float turbulence(vec3 v) {
+     float sum = 0.0;
+     for (int i = 0; i < 10; i++) {
+       float pow2 = pow(2.0, float(i));
+       sum += abs(noise(v * pow2)) / pow2;
+     }
+     return sum;
+   }
+
    // Compute intersection of a ray with a sphere, if any.  Return t.
    // If there is no intersection, return 10000.
 
@@ -99,14 +108,17 @@
    //    material is the r,g,b color of the sphere.
 
    vec3 shadeSphere(vec3 point, vec4 sphere, vec3 material) {
+      float turb = turbulence(vec3(point.x, point.y, 4.0));
+      float c = 0.35 * (sin(5.0 * point.x * turb) * cos(3.0 * point.y * turb) * turb + 1.0);
+      vec3 color = vec3(c * c, c, c * c * c);
       vec3 normal = (point - sphere.xyz) / sphere.w;
-      vec3 amb = material / 15.0;
+      vec3 amb = color / 15.0;
       vec3 diff = vec3(0.0, 0.0, 0.0);
       vec3 spec = vec3(0.0, 0.0, 0.0);
-      diff = diff + Lrgb[0] * material * max(0.0, dot(normal, Ldir[0]));
+      diff = diff + Lrgb[0] * color * max(0.0, dot(normal, Ldir[0]));
       vec3 eye = -normalize(point);
       vec3 r = 2.0 * dot(normal, Ldir[0]) * normal - Ldir[0];
-      spec = spec + Lrgb[0] * material * pow(max(0.0, dot(eye, r)), 30.0);
+      spec = spec + Lrgb[0] * color * pow(max(0.0, dot(eye, r)), 30.0);
       return amb + diff + spec;
    }
 
@@ -158,7 +170,7 @@
       W = normalize(vec3(vPosition.x, vPosition.y, -1.0));
 
       wSphere = vec4(0.0, 0.0, -8.0, 4.0);
-      mSphere = vec4(0.0, 0.0, -8.0, 3.0);
+      mSphere = vec4(0.0, 0.0, -8.0, 2.8 + sin(uTime));
 
       // YOU NEED TO SET r,g,b FOR material.
       materials[0] = vec3(0.5, 0.5, 0.8);
