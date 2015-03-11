@@ -13,27 +13,30 @@ canvas.update = function(g) {
       var cube = new Shape(
         // verts
         [new Vector3(i / gridSize, j / gridSize, 1 / gridSize),
-         new Vector3(i / gridSize, j / gridSize, -1 / gridSize),
+         new Vector3(i / gridSize, j / gridSize, 0),
          new Vector3(i / gridSize, (j + 1) / gridSize, 1 / gridSize),
-         new Vector3(i / gridSize, (j + 1) / gridSize, -1 / gridSize),
+         new Vector3(i / gridSize, (j + 1) / gridSize, 0),
          new Vector3((i + 1) / gridSize, j / gridSize, 1 / gridSize),
-         new Vector3((i + 1) / gridSize, j / gridSize, -1 / gridSize),
+         new Vector3((i + 1) / gridSize, j / gridSize, 0),
          new Vector3((i + 1) / gridSize, (j + 1) / gridSize, 1 / gridSize),
-         new Vector3((i + 1) / gridSize, (j + 1) / gridSize, -1 / gridSize)],
+         new Vector3((i + 1) / gridSize, (j + 1) / gridSize, 0)],
         // edges
         [[0, 1], [0, 2], [0, 4], [1, 3], [1, 5], [2, 6], [2, 3], [3, 7], [4, 5], [4, 6], [5, 7], [6, 7]]);
       var trans_mat = new Matrix();
-      var rotZ_mat = new Matrix();
+      var rotX_mat = new Matrix();
+      var rotY_mat = new Matrix();
       var persp_mat = new Matrix();
       // world cursor coordinates
       var wcx = (this.cursor.x - (this.width / 2)) / (this.width / 2); 
       var wcy = -(this.cursor.y - (this.height / 2)) / (this.width / 2); 
       var dist = Math.sqrt(wcx * wcx + wcy * wcy);
-      persp_mat.perspective(2, -2, 2, -2, 2, -1);
-      trans_mat.translate(0, 0, 5.0 * Math.cos(time + i / 10 + j / 10));
-      rotZ_mat.rotateZ(time / 10);
-      rotZ_mat.multiply(persp_mat);
-      trans_mat.multiply(rotZ_mat);
+      persp_mat.perspective(2, -2, 2, -2, 1, -1);
+      trans_mat.translate(0, Math.cos(time + i / 10 + j / 10), 0);
+      rotX_mat.rotateX(wcy * Math.PI / 8);
+      rotY_mat.rotateY(wcx * Math.PI / 8);
+      rotX_mat.multiply(persp_mat);
+      rotY_mat.multiply(rotX_mat);
+      trans_mat.multiply(rotY_mat);
       var val = Math.floor(128 + 127 * Math.cos(time + i / 10 + j / 10));
       g.strokeStyle = 'rgb(0,255,' + val.toString() + ')';
       cube.draw(g, this.width, this.height, trans_mat);

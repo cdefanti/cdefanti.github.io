@@ -114,8 +114,8 @@ Matrix.prototype = {
   },
   multiply: function(mat) {
     var data = [];
-    for (var j = 0; j < 4; j++) {
-      for (var i = 0; i < 4; i++) {
+    for (var i = 0; i < 4; i++) {
+      for (var j = 0; j < 4; j++) {
         var v1 = [this.data[4 * i], this.data[4 * i + 1], this.data[4 * i + 2], this.data[4 * i + 3]];
         var v2 = [mat.data[j], mat.data[j + 4], mat.data[j + 8], mat.data[j + 12]];
         data.push(dot(v1, v2));
@@ -131,10 +131,10 @@ Matrix.prototype = {
     this.data = data;
   },
   transform: function(src, dst) {
-    var w = dot(new Vector3(this.data[3], this.data[7], this.data[11]), src) + 1;
-    dst.x = (dot(new Vector3(this.data[0], this.data[4], this.data[8]), src) + this.data[12]) / w;
-    dst.y = (dot(new Vector3(this.data[1], this.data[5], this.data[9]), src) + this.data[13]) / w;
-    dst.z = (dot(new Vector3(this.data[2], this.data[6], this.data[10]), src) + this.data[14]) / w;
+    var w = dot([this.data[3], this.data[7], this.data[11]], src) + 1;
+    dst.x = (dot([this.data[0], this.data[4], this.data[8]], src) + this.data[12]) / w;
+    dst.y = (dot([this.data[1], this.data[5], this.data[9]], src) + this.data[13]) / w;
+    dst.z = (dot([this.data[2], this.data[6], this.data[10]], src) + this.data[14]) / w;
   },
 }
 
