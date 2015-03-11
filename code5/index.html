@@ -7,7 +7,7 @@
 <script>
 var canvas = initCanvas('canvas1');
 canvas.update = function(g) {
-  var gridSize = 5;
+  var gridSize = 10;
   for (var i = -gridSize; i < gridSize; i++) {
     for (var j = -gridSize; j < gridSize; j++) {
       var cube = new Shape(
@@ -31,14 +31,14 @@ canvas.update = function(g) {
       var wcy = -(this.cursor.y - (this.height / 2)) / (this.width / 2); 
       var dist = Math.sqrt(wcx * wcx + wcy * wcy);
       persp_mat.perspective(2, -2, 2, -2, 1, -1);
-      trans_mat.translate(0, Math.cos(time + i / 10 + j / 10), 0);
+      trans_mat.translate(0, Math.sin(time + i / gridSize + j / gridSize), Math.cos(time + i / gridSize + j / gridSize));
       rotX_mat.rotateX(wcy * Math.PI / 8);
       rotY_mat.rotateY(wcx * Math.PI / 8);
       rotX_mat.multiply(persp_mat);
       rotY_mat.multiply(rotX_mat);
       trans_mat.multiply(rotY_mat);
       var val = Math.floor(128 + 127 * Math.cos(time + i / 10 + j / 10));
-      g.strokeStyle = 'rgb(0,255,' + val.toString() + ')';
+      g.strokeStyle = 'rgb(50,200,' + val.toString() + ')';
       cube.draw(g, this.width, this.height, trans_mat);
     }
   }
