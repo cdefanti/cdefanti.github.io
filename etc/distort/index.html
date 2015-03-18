@@ -71,8 +71,8 @@
     for (int i = 0; i < nIter; i++) {
       vec2 coord = (vPosition.xy + 1.0) / 2.0;
       float f = 1.0 + float(i)/float(nIter) * 2.0;
-      coord.s += 0.03 * n * f;
-      coord.t += 0.05 * n * f;
+      coord.s += 0.02 * sin(3.14 * n) * n * f;
+      coord.t += 0.02 * cos(3.14 * n) * n * f;
       vec4 texColor = texture2D(uTex, coord);
       color += texColor.rgb / float(nIter);
     }
