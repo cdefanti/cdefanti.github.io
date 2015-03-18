@@ -69,7 +69,7 @@
     vec3 color = vec3(0.0);
     float n = noise(vPosition.xyz + 0.3 * uTime);
     for (int i = 0; i < nIter; i++) {
-      vec2 coord = vPosition.xy;
+      vec2 coord = (vPosition.xy + 1.0) / 2.0;
       float f = 1.0 + float(i)/float(nIter) * 2.0;
       coord.s += 1.0 + 0.1 * cos(n * f);
       coord.t += 1.0 + 0.1 * sin(n * f);
