@@ -2,7 +2,24 @@
 
 <body bgcolor=black>
 <center>
+<p><p><p>
 <td><canvas id='canvas1' width=400 height=400></canvas></td>
+<div>
+<font color="white">
+Intensity
+</font>
+<div>
+<table>
+<td><button type="button" onclick="deltaIntensity(-1.0)">-</button></td>
+<td>
+<font color="white">
+<p id="intensity"></p>
+</font>
+</td>
+<td><button type="button" onclick="deltaIntensity( 1.0)">+</button></td>
+</table>
+</div>
+</div>
 </center>
 </body>
 
@@ -18,10 +35,10 @@
 <script id='my_fragment_shader' type='x-shader/x-fragment'>
    precision mediump float;
    uniform float uTime;
+   uniform float uIntensity;
    uniform vec3  uCursor;
    varying vec3  vPosition;
    uniform sampler2D uTex;
-   const int nIter = 25;
 
    vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
    vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -68,14 +85,11 @@
   void main() {
     vec3 color = vec3(0.0);
     float n = turbulence(vPosition.xyz + vec3(0.05 * uTime, 0.05 * uTime, 0.05 * uTime));
-    for (int i = 0; i < nIter; i++) {
-      vec2 coord = (vPosition.xy + 1.0) / 2.0;
-      float f = 1.0 + float(i)/float(nIter) * 2.0;
-      coord.s += 0.02 * sin(3.14 * n) * n * f;
-      coord.t += 0.02 * cos(3.14 * n) * n * f;
-      vec4 texColor = texture2D(uTex, coord);
-      color += texColor.rgb / float(nIter);
-    }
+    vec2 coord = (vPosition.xy + 1.0) / 2.0;
+    coord.s += 0.01 * uIntensity * sin(n + sin(n)) * n;
+    coord.t += 0.01 * uIntensity * cos(n + sin(n)) * n;
+    vec4 texColor = texture2D(uTex, coord);
+    color += texColor.rgb;
     gl_FragColor = vec4(color, 1.0);
   }
 

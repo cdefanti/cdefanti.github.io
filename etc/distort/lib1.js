@@ -1,5 +1,6 @@
 
 // Define a general purpose 3D vector object.
+var intensity = 4.0;
 
 function Vector3() {
    this.x = 0;
@@ -12,6 +13,15 @@ Vector3.prototype = {
       this.y = y;
       this.z = z;
    },
+}
+function deltaIntensity(delta) {
+  intensity += delta;
+  if (intensity <  0) {
+    intensity =  0;
+  } else if (intensity > 20) {
+    intensity = 20;
+  }
+  document.getElementById("intensity").innerHTML = intensity;
 }
 
 function handleLoadedTexture(texture, gl) {
@@ -31,10 +41,11 @@ function initTexture(gl) {
     handleLoadedTexture(texture, gl)
   }
 
-  texture.image.src = "texture2.png";
+  texture.image.src = "texture3.png";
 }
 
 function start_gl(canvas_id, vertexShader, fragmentShader) {
+  document.getElementById("intensity").innerHTML = intensity;
    setTimeout(function() {
       try {
          var canvas = document.getElementById(canvas_id);
@@ -103,7 +114,7 @@ function gl_init(gl, vertexShader, fragmentShader) {
 
    // Get the address in the fragment shader of each of my uniform variables.
 
-   ['uTime','uCursor','uTex'].forEach(function(name) {
+   ['uTime','uCursor','uTex','uIntensity'].forEach(function(name) {
       gl[name] = gl.getUniformLocation(program, name);
    });
 
@@ -119,6 +130,7 @@ function gl_init(gl, vertexShader, fragmentShader) {
 function gl_update(gl) {
    var time = ((new Date()).getTime() - startTime) / 1000;            // Set uniform variables
    gl.uniform1f(gl.uTime  , time);                                    // in fragment shader.
+   gl.uniform1f(gl.uIntensity  , intensity);                                    // in fragment shader.
    gl.uniform3f(gl.uCursor, gl.cursor.x, gl.cursor.y, gl.cursor.z);
    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);                            // Render the square.
    requestAnimFrame(function() { gl_update(gl); });                   // Animate.
