@@ -1,6 +1,6 @@
 
 // Define a general purpose 3D vector object.
-var intensity = 4.0;
+var intensity = 3.0;
 
 function Vector3() {
    this.x = 0;
@@ -41,7 +41,7 @@ function initTexture(gl) {
     handleLoadedTexture(texture, gl)
   }
 
-  texture.image.src = "texture3.png";
+  texture.image.src = "texture4.png";
 }
 
 function start_gl(canvas_id, vertexShader, fragmentShader) {

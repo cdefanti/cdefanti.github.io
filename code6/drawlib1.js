@@ -25,7 +25,7 @@ function Vector3(x, y, z) {
   this.set(x, y, z);
 }
 Vector3.prototype = {
-  set : function(x, y, z) {
+  set: function(x, y, z) {
     if (x !== undefined) this.x = x;
     if (y !== undefined) this.y = y;
     if (z !== undefined) this.z = z;
@@ -48,7 +48,7 @@ function initCanvas(id) {
   }
   canvas.cursor = new Vector3(0, 0, 0);
   canvas.onmousedown = function(e) { this.setCursor(e.clientX, e.clientY, 1); }
-  canvas.onmousemove = function(e) { console.log("moving mouse"); this.setCursor(e.clientX, e.clientY   ); }
+  canvas.onmousemove = function(e) { this.setCursor(e.clientX, e.clientY   ); }
   canvas.onmouseup   = function(e) { this.setCursor(e.clientX, e.clientY, 0); }
   canvases.push(canvas);
   return canvas;
@@ -82,42 +82,42 @@ Matrix.prototype = {
                 0, 1, 0, 0,
                 0, 0, 1, 0,
                 x, y, z, 1];
-    this.data = data;
+    this.multiply(data);
   },
   rotateX: function(theta) {
     var data = [1, 0, 0, 0,
                 0, Math.cos(theta), Math.sin(theta), 0,
                 0, -Math.sin(theta), Math.cos(theta), 0,
                 0, 0, 0, 1];
-    this.data = data;
+    this.multiply(data);
   },
   rotateY: function(theta) {
     var data  = [Math.cos(theta), 0, Math.sin(theta), 0,
                  0, 1, 0, 0,
                  -Math.sin(theta), 0, Math.cos(theta), 0,
                  0, 0, 0, 1];
-    this.data = data;
+    this.multiply(data);
   },
   rotateZ: function(theta) {
     var data = [Math.cos(theta), Math.sin(theta), 0, 0,
                   -Math.sin(theta), Math.cos(theta), 0, 0,
                   0, 0, 1, 0,
                   0, 0, 0, 1];
-    this.data = data;
+    this.multiply(data);
   },
   scale: function(x, y, z) {
     var data = [x, 0, 0, 0,
                 0, y, 0, 0,
                 0, 0, z, 0,
                 0, 0, 0, 1];
-    this.data = data;
+    this.multiply(data);
   },
   multiply: function(mat) {
     var data = [];
     for (var i = 0; i < 4; i++) {
       for (var j = 0; j < 4; j++) {
         var v1 = [this.data[4 * i], this.data[4 * i + 1], this.data[4 * i + 2], this.data[4 * i + 3]];
-        var v2 = [mat.data[j], mat.data[j + 4], mat.data[j + 8], mat.data[j + 12]];
+        var v2 = [mat[j], mat[j + 4], mat[j + 8], mat[j + 12]];
         data.push(dot(v1, v2));
       }
     }
@@ -138,6 +138,67 @@ Matrix.prototype = {
   },
 }
 
+function Surface(uRes, vRes, surfaceFunction) {
+  this.uRes = uRes;
+  this.vRes = vRes;
+  this.func = surfaceFunction;
+  this.verts = [];
+  this.edges = [];
+  this.setEdges();
+  this.setSurface();
+}
+Surface.prototype = {
+  setEdges: function() {
+    for (var i = 0; i < this.uRes; i++) {
+      for (var j = 0; j < this.vRes; j++) {
+        var index = j + i * this.uRes;
+        var index_r = j - 1 + i * this.uRes;
+        var index_d = j + (i - 1) * this.vRes;
+        if (j > 0) {
+          this.edges.push([index, index_r]);
+        }
+        if (i > 0) {
+          this.edges.push([index, index_d]);
+        }
+      }
+    }
+  },
+  setSurface: function() {
+    this.verts = [];
+    for (var i = 0; i < this.uRes; i++) {
+      for (var j = 0; j < this.vRes; j++) {
+        var u = i / this.uRes;
+        var v = j / this.vRes;
+        this.verts.push(this.func(u, v));
+      }
+    }
+  },
+  draw: function(g, width, height, mat, f) {
+    var t_v0 = new Vector3(0, 0, 0);
+    var t_v1 = new Vector3(0, 0, 0);
+    for (var i = 0; i < this.edges.length; i++) {
+      var v0 = this.verts[this.edges[i][0]];
+      var v1 = this.verts[this.edges[i][1]];
+      mat.transform(v0, t_v0);
+      mat.transform(v1, t_v1);
+      t_v0.x *= f / t_v0.z;
+      t_v0.y *= f / t_v0.z;
+      t_v0.z = f / t_v0.z;
+      t_v1.x *= f / t_v1.z;
+      t_v1.y *= f / t_v1.z;
+      t_v1.z = f / t_v1.z;
+      var px0 = (width  / 2) + t_v0.x * (width / 2);
+      var py0 = (height / 2) - t_v0.y * (width / 2);
+      var px1 = (width  / 2) + t_v1.x * (width / 2);
+      var py1 = (height / 2) - t_v1.y * (width / 2);
+      g.beginPath();
+      g.moveTo(px0, py0);
+      g.lineTo(px1, py1);
+      g.stroke();
+    }
+  },
+}
+
 function Shape(verts, edges) {
   this.verts = [];
   this.edges = [];
@@ -149,22 +210,28 @@ Shape.prototype = {
     this.verts = verts;
     this.edges = edges;
   },
-  draw: function(g, width, height, mat) {
-    g.beginPath();
+  draw: function(g, width, height, mat, f) {
+    var t_v0 = new Vector3(0, 0, 0);
+    var t_v1 = new Vector3(0, 0, 0);
     for (var i = 0; i < this.edges.length; i++) {
       var v0 = this.verts[this.edges[i][0]];
       var v1 = this.verts[this.edges[i][1]];
-      var t_v0 = new Vector3();
-      var t_v1 = new Vector3();
       mat.transform(v0, t_v0);
       mat.transform(v1, t_v1);
+      t_v0.x *= f / t_v0.z;
+      t_v0.y *= f / t_v0.z;
+      t_v0.z = f / t_v0.z;
+      t_v1.x *= f / t_v1.z;
+      t_v1.y *= f / t_v1.z;
+      t_v1.z = f / t_v1.z;
       var px0 = (width  / 2) + t_v0.x * (width / 2);
       var py0 = (height / 2) - t_v0.y * (width / 2);
       var px1 = (width  / 2) + t_v1.x * (width / 2);
       var py1 = (height / 2) - t_v1.y * (width / 2);
+      g.beginPath();
       g.moveTo(px0, py0);
       g.lineTo(px1, py1);
+      g.stroke();
     }
-    g.stroke();
   },
 }

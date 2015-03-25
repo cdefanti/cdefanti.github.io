@@ -1,0 +1,91 @@
+<script src=drawlib1.js></script>
+
+<body bgcolor=black>
+<center>
+<canvas id=canvas1 width=800 height=800>
+<script src=drawlib1.js></script>
+<script src=Noise.js></script>
+<script>
+var canvas = initCanvas('canvas1');
+var f = -1;
+
+var noise = new Noise();
+var nullFunc = function(u, v) {
+  return new Vector3(0, 0, 0);
+};
+var s = new Surface(50, 50, nullFunc);
+var p = [0, 0];
+var last_t = 0;
+
+canvas.update = function(g) {
+  // draw water surface
+  var M = new Matrix();
+  M.rotateX(-Math.PI * 0.25);
+  M.translate(0, 0, 4);
+
+  var wcx = (this.cursor.x - (this.width / 2)) / (this.width / 2); 
+  var wcy = -(this.cursor.y - (this.height / 2)) / (this.height / 2); 
+  var norm = Math.sqrt(wcx * wcx + wcy * wcy);
+  wcx /= norm;
+  wcy /= norm;
+  var dt = time - last_t;
+  p[0] -= dt * wcx;
+  p[1] -= dt * wcy;
+  last_t = time;
+  var noiseFunc = function(u, v) {
+    var height = noise.noise([u * 5 + p[0], v * 5 + p[1], 0]);
+    return new Vector3(5 * u - 2.5, 5 * v - 2.5, 0.3 * height);
+  };
+  s.func = noiseFunc;
+  s.setSurface();
+  g.strokeStyle = 'rgb(0,' + Math.floor(128 + 50 * Math.cos(time))  + ',255)';
+  s.draw(g, this.width, this.height, M, f);
+
+  // draw boat
+  var verts = [
+    // hull
+    new Vector3(0, -0.5, 0),      // 0
+    new Vector3(0.2, -0.2, 0),    // 1
+    new Vector3(0.25, 0, 0),      // 2
+    new Vector3(0.2, 0.2, 0),     // 3 
+    new Vector3(0, 0.5, 0),       // 4
+    new Vector3(-0.2, 0.2, 0),    // 5
+    new Vector3(-0.25, 0, 0),     // 6
+    new Vector3(-0.2, -0.2, 0),   // 7
+    new Vector3(0, -0.2, 0.5),   // 8
+    new Vector3(0, 0, 0.5),      // 9
+    new Vector3(0, 0.2, 0.5),    // 10
+    // mast
+    new Vector3(0, 0, 0),         // 11
+    new Vector3(0, 0, -0.8),       // 12
+    new Vector3(0.3, 0, -0.8),     // 13
+    new Vector3(-0.3, 0, -0.8),    // 14
+    new Vector3(-0.3, 0, -0.3),    // 15
+    new Vector3(0.3, 0, -0.3)      // 16
+  ];
+  var edges = [
+    [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 0],
+    [0, 8], [1, 8], [7, 8],
+    [2, 9], [6, 9],
+    [3, 10], [5, 10], [4, 10],
+    [8, 9], [9, 10],
+
+    [11, 12],
+    [13, 14], [14, 15], [15, 16], [16, 13]
+  ];
+  var boat = new Shape(verts, edges);
+  var height = noise.noise([p[0], p[1], 0]);
+  var height_diff = noise.noise([p[0] + wcx * 0.05, p[1] + wcy * 0.05, 0]) - height;
+  var bM = new Matrix();
+  var angle = Math.atan2(wcx, wcy);
+  bM.rotateX(height_diff * Math.PI);
+  bM.rotateZ(-angle);
+  bM.rotateX(-Math.PI * 0.25);
+  bM.translate(0, 0.3 * height, 4);
+  g.strokeStyle = 'rgb(255, 100, 20)';
+  boat.draw(g, this.width, this.height, bM, f);
+}
+</script>
+</center>
+</body>
+
