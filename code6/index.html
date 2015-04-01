@@ -75,7 +75,7 @@ canvas.update = function(g) {
   ];
   var boat = new Shape(verts, edges);
   var height = noise.noise([p[0], p[1], 0]);
-  var height_diff = noise.noise([p[0] + wcx * 0.05, p[1] + wcy * 0.05, 0]) - height;
+  var height_diff = noise.noise([p[0] + wcx * 0.02, p[1] + wcy * 0.02, 0]) - height;
   var bM = new Matrix();
   var angle = Math.atan2(wcx, wcy);
   bM.rotateX(height_diff * Math.PI);

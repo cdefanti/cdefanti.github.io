@@ -1,0 +1,139 @@
+<script src=drawlib1.js></script>
+
+<body bgcolor=black>
+<center>
+<font color="white">
+Gradient Editor Using Hermetian Splines:<br>
+Click and drag any of the gray control points to modify the spline.<br>
+Click outside of a control point to create a new control point.<br>
+Press Q/A to increase/decrease the red derivative at the highlighted point.<br>
+Press W/S to increase/decrease the green derivative at the highlighted point.<br>
+Press E/D to increase/decrease the blue derivative at the highlighted point.<br>
+Press R to delete the highlighted point.<br>
+</font>
+</center>
+<center>
+<table cellpadding=40>
+<tr>
+  <td><font color="white"><center>Red/Green</center></font></td>
+  <td><font color="white"><center>Green/Blue</center></font></td>
+  <td><font color="white"><center>Blue/Red</center></font></td>
+</tr>
+<tr>
+  <td><canvas id=canvas_rg width=400 height=400></td>
+  <td><canvas id=canvas_gb width=400 height=400></td>
+  <td><canvas id=canvas_br width=400 height=400></td>
+</tr>
+</table>
+</center>
+<center>
+<canvas id=canvas_grad width=1200 height=100>
+</center>
+<center>
+<script src=drawlib1.js></script>
+<script src=Noise.js></script>
+<script>
+var canvas_rg = initCanvas('canvas_rg');
+var canvas_gb = initCanvas('canvas_gb');
+var canvas_br = initCanvas('canvas_br');
+var canvas_grad = initCanvas('canvas_grad');
+
+var points = [
+  {r: 0.75, g: 0.25, b: 0.25, dr: -0.5, dg: -0.5, db: -0.5,},
+  {r: 0.25, g: 0.25, b: 0.25, dr: -0.5, dg: 0.5, db: -0.5,},
+  {r: 0.25, g: 0.75, b: 0.75, dr: 0.5, dg: 0.5, db: 0.5,},
+  {r: 0.75, g: 0.75, b: 0.75, dr: 0.5, dg: -0.5, db: 0.5}];
+
+var charmat = new Matrix();
+charmat.data = [2, -3, 0, 1,
+                -2, 3, 0, 0,
+                1, -2, 1, 0,
+                1, -1, 0, 0];
+
+var spline = new Spline(points, charmat);
+
+var I = new Matrix();
+
+var handleKey = function(e) {
+  switch(e.keyCode) {
+    // q
+    case 81:
+      spline.changeConst('dr', 0.01);
+      break;
+    // a
+    case 65:
+      spline.changeConst('dr', -0.01);
+      break;
+    // w
+    case 87:
+      spline.changeConst('dg', 0.01);
+      break;
+    // s
+    case 83:
+      spline.changeConst('dg', -0.01);
+      break;
+    // e
+    case 69:
+      spline.changeConst('db', 0.01);
+      break;
+    // d
+    case 68:
+      spline.changeConst('db', -0.01);
+      break;
+    // r
+    case 82:
+      spline.deletePoint();
+      break;
+  }
+};
+window.addEventListener('keydown', handleKey, false);
+
+canvas_rg.update = function(g) {
+  spline.handleMouse(this.cursor, ViewTypes.RG, this.width, this.height);
+  g.strokeStyle = 'rgb(255, 0, 0)';
+  g.beginPath();
+  g.moveTo(0, this.height);
+  g.lineTo(this.width, this.height);
+  g.stroke();
+  g.strokeStyle = 'rgb(0, 255, 0)';
+  g.beginPath();
+  g.moveTo(0, this.height);
+  g.lineTo(0, 0);
+  g.stroke();
+  spline.draw(g, this.width, this.height, I, 0, ViewTypes.RG);
+}
+canvas_gb.update = function(g) {
+  spline.handleMouse(this.cursor, ViewTypes.GB, this.width, this.height);
+  g.strokeStyle = 'rgb(0, 255, 0)';
+  g.beginPath();
+  g.moveTo(0, this.height);
+  g.lineTo(this.width, this.height);
+  g.stroke();
+  g.strokeStyle = 'rgb(0, 0, 255)';
+  g.beginPath();
+  g.moveTo(0, this.height);
+  g.lineTo(0, 0);
+  g.stroke();
+  spline.draw(g, this.width, this.height, I, 0, ViewTypes.GB);
+}
+canvas_br.update = function(g) {
+  spline.handleMouse(this.cursor, ViewTypes.BR, this.width, this.height);
+  g.strokeStyle = 'rgb(0, 0, 255)';
+  g.beginPath();
+  g.moveTo(0, this.height);
+  g.lineTo(this.width, this.height);
+  g.stroke();
+  g.strokeStyle = 'rgb(255, 0, 0)';
+  g.beginPath();
+  g.moveTo(0, this.height);
+  g.lineTo(0, 0);
+  g.stroke();
+  spline.draw(g, this.width, this.height, I, 0, ViewTypes.BR);
+}
+canvas_grad.update = function(g) {
+  spline.drawGrad(g, this.width, this.height);
+}
+</script>
+</center>
+</body>
+
