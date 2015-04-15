@@ -1,0 +1,130 @@
+<script src=three.js></script>
+<body>
+<center><big><b>
+Tubified Torus Knots
+</b></big></center>
+<div id='SimpleScene_code'>
+<script>
+window.time = 0;
+window.SimpleScene = function() {
+  this.init = function(name) {
+      this.scene = new THREE.Scene();
+
+      // CREATE THE CAMERA, AND ATTACH IT TO THE SCENE.
+
+      var camera = new THREE.PerspectiveCamera(90, 1, 1, 10000);
+      camera.position.z = 3;
+      this.scene.add(camera);
+
+      // CREATE THE WEBGL RENDERER, AND ATTACH IT TO THE DOCUMENT BODY.
+
+      var renderer = new THREE.WebGLRenderer( { alpha: true } );
+      renderer.setSize(800, 800);
+      document.getElementById(name).appendChild(renderer.domElement);
+
+      // CALL THE USER'S SETUP FUNCTION JUST ONCE.
+
+      this.setup();
+
+      // START THE ANIMATION LOOP.
+
+      var that = this;
+      (function tick() {
+        time = (new Date().getTime()) / 1000;
+        that.update();
+        renderer.render(that.scene, camera);
+        requestAnimationFrame(tick);
+      })();
+  }
+};
+</script>
+</div>
+<center><div id='Scene4_id'></div></center>
+<div id='Scene4_code'>
+<script>
+function Scene4() {
+   var geom = [];
+   var coprime_pairs = [[2,3],[2,5],[2,7],
+                        [3,5],[3,7],[5,7]];
+   var colors = [0xFF0000,
+                 0xFFFF00,
+                 0x00FF00,
+                 0x00FFFF,
+                 0x0000FF,
+                 0xFF00FF];
+
+   this.setup = function() {
+      var light = new THREE.DirectionalLight(0xffffff);
+      light.position.set(1,1,1).normalize();
+      this.scene.add(light);
+
+      var make_knot = function(a, b) {
+        return knot = function(u) {
+          var x = (2.0 + Math.cos(b * u)) * Math.cos(a * u);
+          var y = (2.0 + Math.cos(b * u)) * Math.sin(a * u);
+          var z = Math.sin(b * u);
+          return new THREE.Vector3(x, y, z);
+        }
+      };
+
+      // calculates tangent at value u on curve f
+      var tangent = function(f, u) {
+       var d = 0.001;
+       var dv = f(u + d).sub(f(u))
+       return dv.normalize();
+      };
+
+      // calculates normal at value u on curve f with tangent t
+      var normal = function(f, u, t) {
+        var v = new THREE.Vector3(0, 1, 0);
+        if (v.equals(t)) v = new THREE.Vector3(0, 0, 1);
+        return t.clone().cross(v).normalize();
+      };
+
+      // calculated binormal at value u on curve f with tangent t and normal n
+      var binormal = function(f, u, t, n) {
+        return t.clone().cross(n).normalize();
+      };
+
+      for (var i = 0; i < coprime_pairs.length; i++) {
+        var material = new THREE.MeshPhongMaterial({
+          ambient: 0,
+          emissive: 0x000000,
+          color: colors[i],
+          specular: 0x999999,
+          shininess: 40
+        });
+        material.shading = THREE.SmoothShading;
+        var geom_func = function(u0, v0) {
+          var r = 0.3;
+          var u = u0 * 2 * Math.PI;
+          var v = v0 * 2 * Math.PI;
+          var f = make_knot(coprime_pairs[i][0], coprime_pairs[i][1]);
+          var t = tangent(f, u);
+          var n = normal(f, u, t);
+          var b = binormal(f, u, t, n);
+          var tube = n.multiplyScalar(Math.cos(v)).add(b.multiplyScalar(Math.sin(v)));
+          var pos = f(u).add(tube.multiplyScalar(r));
+          return pos.multiplyScalar(0.5);
+        };
+        geom.push(new THREE.Mesh(new THREE.ParametricGeometry(geom_func,256,32), material));
+        this.scene.add(geom[i]);
+      }
+   }
+
+   this.update = function() {
+     for (var i = 0; i < coprime_pairs.length; i++) {
+      geom[i].rotation.x = Math.PI/2 + time - i / coprime_pairs.length * 2 * Math.PI;
+      geom[i].rotation.z = time;
+      geom[i].position.z = -5 * Math.cos(time - i / coprime_pairs.length * 2 * Math.PI);
+      geom[i].position.y = -5 + 5 * Math.sin(time - i / coprime_pairs.length * 2 * Math.PI);
+     }
+   }
+}
+Scene4.prototype = new SimpleScene;
+new Scene4().init('Scene4_id');
+</script>
+</div>
+
+</body>
+
