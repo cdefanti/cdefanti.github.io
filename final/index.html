@@ -77,9 +77,9 @@ var parseXML = function(xml) {
         // negate some values due to LHCS vs. RHCS
         var x = -parseFloat(rigid_bodies[j].getAttribute('x'));
         var y = parseFloat(rigid_bodies[j].getAttribute('y'));
-        var z = parseFloat(rigid_bodies[j].getAttribute('z'));
-        var qx = parseFloat(rigid_bodies[j].getAttribute('qx'));
-        var qy = -parseFloat(rigid_bodies[j].getAttribute('qy'));
+        var z = -parseFloat(rigid_bodies[j].getAttribute('z'));
+        var qx = -parseFloat(rigid_bodies[j].getAttribute('qx'));
+        var qy = parseFloat(rigid_bodies[j].getAttribute('qy'));
         var qz = -parseFloat(rigid_bodies[j].getAttribute('qz'));
         var qw = parseFloat(rigid_bodies[j].getAttribute('qw'));
         var id = rigid_bodies[j].getAttribute('id');
@@ -253,12 +253,14 @@ function EnumerateVRDevices(devices) {
     if (devices[i] instanceof HMDVRDevice) {
       hmdDevice = devices[i];
 
-      var eyeOffsetLeft = hmdDevice.getEyeTranslation("left");
-      var eyeOffsetRight = hmdDevice.getEyeTranslation("right")
+      if (hmd.getEyeTranslation) {
+        var eyeOffsetLeft = hmdDevice.getEyeTranslation("left");
+        var eyeOffsetRight = hmdDevice.getEyeTranslation("right")
 
-      cameraLeft.position.add(eyeOffsetLeft);
+        cameraLeft.position.add(eyeOffsetLeft);
 
-      cameraRight.position.add(eyeOffsetRight);
+        cameraRight.position.add(eyeOffsetRight);
+      }
 
       resizeFOV(0.0);
     }
@@ -428,7 +430,6 @@ var current_line = new THREE.Geometry();
 var line_material = new THREE.LineBasicMaterial({color: 0xffffff});
 var wand_active = false;
 
-
 var material = new THREE.LineBasicMaterial({
     color: 0x0000ff,
     // linewidth: 5, Line width currently does not work in many browsers :(
@@ -460,7 +461,7 @@ function render(t) {
           setCamera(rb.pos, rb.rot);
         } else if (wand_active && rb_id === WAND_ID) {
           var rb = rbs[rb_id];
-          current_line.vertices.push(new THREE.Vector3(rb.pos.x, rb.pos.y, rb.pos.z - 1.0));
+          current_line.vertices.push(new THREE.Vector3(rb.pos.x, rb.pos.y, rb.pos.z));
         }
       }
       current_frame++;
