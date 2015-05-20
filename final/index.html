@@ -1,0 +1,495 @@
+<html>
+<head>
+<meta charset="utf-8">
+<!--
+Holodeck Javascript Client by Connor DeFanti
+
+Some code was borrowed by Brandon Jones to get the VR-distorted lens effect.
+The copyright notice is below:
+Copyright (c) 2014, Brandon Jones. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<title>Final Project</title>
+</head>
+<body>
+<button type="button" id="vrBtn">VR Mode</button><br>
+Add XML data: <input type='file' accept='text/xml' onchange='openFile(event)'><br>
+<a href="http://cdefanti.github.io/final/testdata.xml">Sample Data</a>
+<img id='output'>
+
+<script src="three.js"></script>
+<script>
+var HEADSET_ID = 'VR2';
+var WAND_ID = 'wand1';
+
+
+var parseXML = function(xml) {
+  var frames = [];
+  var parser = new DOMParser();
+  var xmlDoc = parser.parseFromString(xml, 'text/xml');
+  var updates = xmlDoc.getElementsByTagName('Updates');
+  for (var i = 0; i < updates.length; i++) {
+    var mod_vers = updates[i].getAttribute('modification_version');
+    var rigid_body_data = {};
+    var mouse_state_data = {};
+    var all_updates = updates[i].getElementsByTagName('Update')
+    var motive_update, mouse_update;
+    for (var j = 0; j < all_updates.length; j++) {
+      if (all_updates[j].getAttribute('id') === 'motive') {
+        motive_update = all_updates[j];
+      } else if (all_updates[j].getAttribute('id') === 'mice') {
+        mouse_update = all_updates[j];
+      }
+    }
+
+    // currently we are assuming at most one motive update and one mouse update per frame.
+    if (motive_update) {
+      var data_descriptions = motive_update.getElementsByTagName('DataDescriptions')[0];
+      var rigid_body_descriptions = data_descriptions.getElementsByTagName('RigidBody');
+
+      var id_to_name = {};
+      for (var j = 0; j < rigid_body_descriptions.length; j++) {
+        id_to_name[rigid_body_descriptions[j].getAttribute('id')] = rigid_body_descriptions[j].getAttribute('name');
+      }
+      var rigid_bodies_array = motive_update.getElementsByTagName('RigidBodies')[0];
+      var rigid_bodies = rigid_bodies_array.getElementsByTagName('RigidBody');
+
+      for (var j = 0; j < rigid_bodies.length; j++) {
+        // negate some values due to LHCS vs. RHCS
+        var x = -parseFloat(rigid_bodies[j].getAttribute('x'));
+        var y = parseFloat(rigid_bodies[j].getAttribute('y'));
+        var z = parseFloat(rigid_bodies[j].getAttribute('z'));
+        var qx = parseFloat(rigid_bodies[j].getAttribute('qx'));
+        var qy = -parseFloat(rigid_bodies[j].getAttribute('qy'));
+        var qz = -parseFloat(rigid_bodies[j].getAttribute('qz'));
+        var qw = parseFloat(rigid_bodies[j].getAttribute('qw'));
+        var id = rigid_bodies[j].getAttribute('id');
+        rigid_body_data[id_to_name[id]] = {
+          pos: new THREE.Vector3(x, y, z),
+          rot: new THREE.Quaternion(qx, qy, qz, qw),
+        };
+      }
+    }
+    if (mouse_update) {
+      var mice = mouse_update.getElementsByTagName('Mouse');
+      for (var j = 0; j < mice.length; j++) {
+        if (mice[j].getAttribute('name') === '2.4G Keyboard Mouse') {
+          var id = mice[j].getAttribute('id');
+          var button_data = {};
+          var buttons = mice[j].getElementsByTagName('Button');
+          for (var k = 0; k < buttons.length; k++) {
+            var bid = buttons[k].getAttribute('id');
+            button_data[bid] = buttons[k].getAttribute('state');
+          }
+          mouse_state_data[id] = button_data;
+        }
+      }
+    }
+
+    frames = frames.concat({
+      rigid_body_data: rigid_body_data,
+      mouse_state_data: mouse_state_data,
+    });
+  }
+  return frames;
+}
+
+var frame_data;
+var current_frame = 0;
+
+var openFile = function(event) {
+  var input = event.target;
+
+  var reader = new FileReader();
+  reader.onload = function(){
+    var xml = reader.result;
+    frame_data = parseXML(xml);
+    console.log('done reading xml');
+  };
+  console.log('reading xml...');
+  reader.readAsText(input.files[0]);
+};
+
+
+var VR_POSITION_SCALE = 25;
+
+//
+// WebVR Device initialization
+//
+var sensorDevice = null;
+var hmdDevice = null;
+var vrMode = false;
+var renderTargetWidth = 1920;
+var renderTargetHeight = 1080;
+
+function PerspectiveMatrixFromVRFieldOfView(fov, zNear, zFar) {
+  var outMat = new THREE.Matrix4();
+  var out = outMat.elements;
+  var upTan, downTan, leftTan, rightTan;
+  if (fov == null) {
+    // If no FOV is given plug in some dummy values
+    upTan = Math.tan(50 * Math.PI/180.0);
+    downTan = Math.tan(50 * Math.PI/180.0);
+    leftTan = Math.tan(45 * Math.PI/180.0);
+    rightTan = Math.tan(45 * Math.PI/180.0);
+  } else {
+    upTan = Math.tan(fov.upDegrees * Math.PI/180.0);
+    downTan = Math.tan(fov.downDegrees * Math.PI/180.0);
+    leftTan = Math.tan(fov.leftDegrees * Math.PI/180.0);
+    rightTan = Math.tan(fov.rightDegrees * Math.PI/180.0);
+  }
+
+  var xScale = 2.0 / (leftTan + rightTan);
+  var yScale = 2.0 / (upTan + downTan);
+
+  out[0] = xScale;
+  out[4] = 0.0;
+  out[8] = -((leftTan - rightTan) * xScale * 0.5);
+  out[12] = 0.0;
+
+  out[1] = 0.0;
+  out[5] = yScale;
+  out[9] = ((upTan - downTan) * yScale * 0.5);
+  out[13] = 0.0;
+
+  out[2] = 0.0;
+  out[6] = 0.0;
+  out[10] = zFar / (zNear - zFar);
+  out[14] = (zFar * zNear) / (zNear - zFar);
+
+  out[3] = 0.0;
+  out[7] = 0.0;
+  out[11] = -1.0;
+  out[15] = 0.0;
+
+  return outMat;
+}
+
+var renderer = new THREE.WebGLRenderer();
+var cameraLeft = new THREE.PerspectiveCamera(135, 4/3, 0.1, 1000);
+var cameraRight = new THREE.PerspectiveCamera(135, 4/3, 0.1, 1000);
+var camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.01, 1000);
+
+var fovScale = 1.0;
+function resizeFOV(amount) {
+  var fovLeft, fovRight;
+
+  if (!hmdDevice) { return; }
+
+  if (amount != 0 && 'setFieldOfView' in hmdDevice) {
+    fovScale += amount;
+    if (fovScale < 0.1) { fovScale = 0.1; }
+
+    fovLeft = hmdDevice.getRecommendedEyeFieldOfView("left");
+    fovRight = hmdDevice.getRecommendedEyeFieldOfView("right");
+
+    fovLeft.upDegrees *= fovScale;
+    fovLeft.downDegrees *= fovScale;
+    fovLeft.leftDegrees *= fovScale;
+    fovLeft.rightDegrees *= fovScale;
+
+    fovRight.upDegrees *= fovScale;
+    fovRight.downDegrees *= fovScale;
+    fovRight.leftDegrees *= fovScale;
+    fovRight.rightDegrees *= fovScale;
+
+    hmdDevice.setFieldOfView(fovLeft, fovRight);
+  }
+
+  if ('getRecommendedEyeRenderRect' in hmdDevice) {
+    var leftEyeViewport = hmdDevice.getRecommendedEyeRenderRect("left");
+    var rightEyeViewport = hmdDevice.getRecommendedEyeRenderRect("right");
+    renderTargetWidth = leftEyeViewport.width + rightEyeViewport.width;
+    renderTargetHeight = Math.max(leftEyeViewport.height, rightEyeViewport.height);
+    document.getElementById("renderTarget").innerHTML = renderTargetWidth + "x" + renderTargetHeight;
+  }
+
+  resize();
+
+  if ('getCurrentEyeFieldOfView' in hmdDevice) {
+    fovLeft = hmdDevice.getCurrentEyeFieldOfView("left");
+    fovRight = hmdDevice.getCurrentEyeFieldOfView("right");
+  } else {
+    fovLeft = hmdDevice.getRecommendedEyeFieldOfView("left");
+    fovRight = hmdDevice.getRecommendedEyeFieldOfView("right");
+  }
+
+  cameraLeft.projectionMatrix = PerspectiveMatrixFromVRFieldOfView(fovLeft, 0.1, 1000);
+  cameraRight.projectionMatrix = PerspectiveMatrixFromVRFieldOfView(fovRight, 0.1, 1000);
+}
+
+function resetSensor() {
+  if (sensorDevice) {
+    if ('resetSensor' in sensorDevice) {
+      sensorDevice.resetSensor();
+    } else if ('zeroSensor' in sensorDevice) {
+      sensorDevice.zeroSensor();
+    }
+  }
+}
+
+function EnumerateVRDevices(devices) {
+  // First find an HMD device
+  for (var i = 0; i < devices.length; ++i) {
+    if (devices[i] instanceof HMDVRDevice) {
+      hmdDevice = devices[i];
+
+      var eyeOffsetLeft = hmdDevice.getEyeTranslation("left");
+      var eyeOffsetRight = hmdDevice.getEyeTranslation("right")
+
+      cameraLeft.position.add(eyeOffsetLeft);
+
+      cameraRight.position.add(eyeOffsetRight);
+
+      resizeFOV(0.0);
+    }
+  }
+
+  // Next find a sensor that matches the HMD hardwareUnitId
+  for (var i = 0; i < devices.length; ++i) {
+    if (devices[i] instanceof PositionSensorVRDevice &&
+        (!hmdDevice || devices[i].hardwareUnitId == hmdDevice.hardwareUnitId)) {
+      sensorDevice = devices[i];
+      resetSensor();
+    }
+  }
+}
+
+if (navigator.getVRDevices) {
+  navigator.getVRDevices().then(EnumerateVRDevices);
+} else if (navigator.mozGetVRDevices) {
+  navigator.mozGetVRDevices(EnumerateVRDevices);
+} else {
+  console.log("VR mode not supported!");
+}
+
+function resize() {
+  if (vrMode) {
+    camera.aspect = renderTargetWidth / renderTargetHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(renderTargetWidth, renderTargetHeight);
+  } else {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+}
+resize();
+window.addEventListener("resize", resize, false);
+
+renderer.domElement.addEventListener("touchstart", function(ev) {
+  resetSensor();
+});
+
+// Fullscreen VR mode handling
+
+function onFullscreenChange() {
+  if(!document.webkitFullscreenElement && !document.mozFullScreenElement) {
+    vrMode = false;
+  }
+  resize();
+}
+
+document.addEventListener("webkitfullscreenchange", onFullscreenChange, false);
+document.addEventListener("mozfullscreenchange", onFullscreenChange, false);
+
+var vrBtn = document.getElementById("vrBtn");
+if (vrBtn) {
+  vrBtn.addEventListener("click", function() {
+    vrMode = true;
+    resize();
+    if (renderer.domElement.webkitRequestFullscreen) {
+      renderer.domElement.webkitRequestFullscreen({ vrDisplay: hmdDevice });
+    } else if (renderer.domElement.mozRequestFullScreen) {
+      renderer.domElement.mozRequestFullScreen({ vrDisplay: hmdDevice });
+    }
+  }, false);
+}
+
+document.addEventListener("webkitfullscreenchange", onFullscreenChange, false);
+document.addEventListener("mozfullscreenchange", onFullscreenChange, false);
+
+// Set up the scene
+var scene = new THREE.Scene();
+
+renderer.setClearColor(0x202020, 1.0);
+
+var ambient = new THREE.AmbientLight(0x444444);
+scene.add(ambient);
+
+var light = new THREE.PointLight(0xffffff);
+light.position.set(0, 2.7, 0);
+scene.add(light);
+
+// bottom wall
+var texture_bot, material_bot, wall_bot;
+texture_bot = THREE.ImageUtils.loadTexture( "textures/WallBottom.jpg" );
+texture_bot.wrapS = THREE.RepeatWrapping; 
+texture_bot.wrapT = THREE.RepeatWrapping;
+texture_bot.repeat.set(8, 9); 
+material_bot = new THREE.MeshLambertMaterial({map : texture_bot});
+wall_bot = new THREE.Mesh(new THREE.PlaneBufferGeometry(6.76, 7.62), material_bot);
+wall_bot.position = new THREE.Vector3(0, 0, 0);
+wall_bot.rotation.x = -Math.PI / 2;
+scene.add(wall_bot);
+
+// top wall
+var texture_top, material_top, wall_top;
+texture_top = THREE.ImageUtils.loadTexture( "textures/WallTop.jpg" );
+texture_top.wrapS = THREE.RepeatWrapping; 
+texture_top.wrapT = THREE.RepeatWrapping;
+texture_top.repeat.set(8, 9); 
+material_top = new THREE.MeshLambertMaterial({map : texture_top});
+wall_top = new THREE.Mesh(new THREE.PlaneBufferGeometry(6.76, 7.62), material_top);
+wall_top.rotation.x = Math.PI / 2;
+wall_top.position.y = 2.75;
+scene.add(wall_top);
+
+// front wall
+var texture_front, material_front, wall_front;
+texture_front = THREE.ImageUtils.loadTexture( "textures/WallFront.jpg" );
+material_front = new THREE.MeshLambertMaterial({map : texture_front});
+wall_front = new THREE.Mesh(new THREE.PlaneBufferGeometry(6.96, 2.75), material_front);
+wall_front.rotation.x = 0.0;
+wall_front.position.z = -3.81;
+wall_front.position.y = 1.375;
+scene.add(wall_front);
+
+// back wall
+var texture_back, material_back, wall_back;
+texture_back = THREE.ImageUtils.loadTexture( "textures/WallBack.jpg" );
+material_back = new THREE.MeshLambertMaterial({map : texture_back});
+wall_back = new THREE.Mesh(new THREE.PlaneBufferGeometry(6.96, 2.75), material_back);
+wall_back.rotation.y = Math.PI;
+wall_back.position.z = 3.81;
+wall_back.position.y = 1.375;
+scene.add(wall_back);
+
+// left wall
+var texture_left, material_left, wall_left;
+texture_left = THREE.ImageUtils.loadTexture( "textures/WallLeft.jpg" );
+material_left = new THREE.MeshLambertMaterial({map : texture_left});
+wall_left = new THREE.Mesh(new THREE.PlaneBufferGeometry(7.62, 2.75), material_left);
+wall_left.rotation.y = Math.PI / 2;
+wall_left.position.x = -3.445;
+wall_left.position.y = 1.375;
+scene.add(wall_left);
+
+// right wall
+var texture_right, material_right, wall_right;
+texture_right = THREE.ImageUtils.loadTexture( "textures/WallRight.jpg" );
+material_right = new THREE.MeshLambertMaterial({map : texture_right});
+wall_right = new THREE.Mesh(new THREE.PlaneBufferGeometry(7.62, 2.75), material_right);
+wall_right.rotation.y = -Math.PI / 2;
+wall_right.position.x = 3.445;
+wall_right.position.y = 1.375;
+scene.add(wall_right);
+
+//
+// Update Loop
+//
+var setCamera = function(pos, rot) {
+  if (vrMode) {
+    cameraLeft.position = pos;
+    cameraLeft.rotation = rot;
+    cameraRight.position = pos;
+    cameraRight.rotation = rot;
+    var eyeOffsetLeft = hmdDevice.getEyeTranslation("left");
+    var eyeOffsetRight = hmdDevice.getEyeTranslation("right")
+    cameraLeft.position.add(eyeOffsetLeft);
+    cameraRight.position.add(eyeOffsetRight);
+  } else {
+    camera.position.set(pos.x, pos.y, pos.z);
+    camera.quaternion.set(rot.x, rot.y, rot.z, rot.w);
+  }
+}
+
+var lines = [];
+var current_line = new THREE.Geometry();
+var line_material = new THREE.LineBasicMaterial({color: 0xffffff});
+var wand_active = false;
+
+
+var material = new THREE.LineBasicMaterial({
+    color: 0x0000ff,
+    // linewidth: 5, Line width currently does not work in many browsers :(
+});
+
+function render(t) {
+  if (frame_data) {
+    if (!frame_data[current_frame]) {
+      console.log('no frame data for frame',current_frame);
+    } else {
+      var mouse_data = frame_data[current_frame].mouse_state_data;
+      for (var id in mouse_data) {
+        if (mouse_data[id]['0'] === 'down') {
+          wand_active = true;
+        } else {
+          wand_active = false;
+          if (current_line.vertices.length > 0) {
+            var line = new THREE.Line(current_line, line_material);
+            scene.add(line);
+            lines = lines.concat(line);
+            current_line = new THREE.Geometry();
+          }
+        }
+      }
+      var rbs = frame_data[current_frame].rigid_body_data;
+      for (var rb_id in rbs) {
+        if (rb_id === HEADSET_ID) {
+          var rb = rbs[rb_id];
+          setCamera(rb.pos, rb.rot);
+        } else if (wand_active && rb_id === WAND_ID) {
+          var rb = rbs[rb_id];
+          current_line.vertices.push(new THREE.Vector3(rb.pos.x, rb.pos.y, rb.pos.z - 1.0));
+        }
+      }
+      current_frame++;
+    }
+  }
+
+  if (vrMode) {
+    // Render left eye
+    renderer.enableScissorTest (true);
+    renderer.setScissor(0, 0, renderTargetWidth / 2, renderTargetHeight);
+    renderer.setViewport(0, 0, renderTargetWidth / 2, renderTargetHeight);
+    renderer.render(scene, cameraLeft);
+
+    // Render right eye
+    renderer.setScissor(renderTargetWidth / 2, 0, renderTargetWidth / 2, renderTargetHeight);
+    renderer.setViewport(renderTargetWidth / 2, 0, renderTargetWidth / 2, renderTargetHeight);
+    renderer.render(scene, cameraRight);
+  } else {
+    // Render mono view
+    renderer.enableScissorTest (false);
+    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(render);
+}
+document.body.appendChild(renderer.domElement);
+render();
+</script>
+</body>
+</html>
+
+
