@@ -41,7 +41,7 @@ function initTexture(gl) {
     handleLoadedTexture(texture, gl)
   }
 
-  texture.image.src = "texture4.png";
+  texture.image.src = "texture3.png";
 }
 
 function start_gl(canvas_id, vertexShader, fragmentShader) {
