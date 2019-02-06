@@ -53,7 +53,7 @@
         
         float t = uTime;
         for (int i = 0; i < 3; i++) {
-            color += func(pos, uTime + 0.03 * float(i), vec3(i == 0, i == 1, i == 2));
+            color += func(pos, t + 0.03 * float(i), vec3(i == 2, i == 1, i == 0));
         }
         gl_FragColor = vec4(color, 1.0);
     }
@@ -106,7 +106,7 @@
 
         float t = uTime;
         for (int i = 0; i < 3; i++) {
-            color += func(pos, uTime + 0.03 * float(i), vec3(i == 0, i == 1, i == 2));
+            color += func(pos, t + 0.03 * float(i), vec3(i == 2, i == 1, i == 0));
         }
         gl_FragColor = vec4(color, 1.0);
     }
@@ -131,8 +131,8 @@
         const int n = 13;
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
-                float x = -1.2 + float(i) / 5.0 + sin(t + float(i) / 6.0 + float(j) / 6.0) / 6.0;
-                float y = -1.2 + float(j) / 5.0 + cos(t + float(i) / 6.0 + float(j) / 6.0) / 6.0;
+                float x = -1.2 + float(i) / 5.0 + sin(M_PI / 3.0 * t + float(i) / 6.0 + float(j) / 6.0) / 6.0;
+                float y = -1.2 + float(j) / 5.0 + cos(M_PI / 3.0 * t + float(i) / 6.0 + float(j) / 6.0) / 6.0;
                 vec2 cpos = vec2(x, y);
                 if (circle(pos, cpos, 0.08) && ! circle(pos, cpos, 0.05)) {
                     color += c;
@@ -148,7 +148,7 @@
 
         float t = uTime;
         for (int i = 0; i < 3; i++) {
-            color += func(pos, uTime + 0.15 * float(i), vec3(i == 0, i == 1, i == 2));
+            color += func(pos, t + 0.15 * float(i), vec3(i == 2, i == 1, i == 0));
         }
         gl_FragColor = vec4(color, 1.0);
     }

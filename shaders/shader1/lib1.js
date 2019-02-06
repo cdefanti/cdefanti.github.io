@@ -117,12 +117,16 @@ function gl_init(gl, vertexShader, fragmentShader) {
 // Update is called once per animation frame.
 
 function gl_update(gl) {
-   var time = ((new Date()).getTime() - startTime) / 1000;            // Set uniform variables
-   gl.uniform1f(gl.uTime  , time);                                    // in fragment shader.
-   gl.uniform1f(gl.uIntensity  , intensity);                                    // in fragment shader.
-   gl.uniform3f(gl.uCursor, gl.cursor.x, gl.cursor.y, gl.cursor.z);
-   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);                            // Render the square.
-   requestAnimFrame(function() { gl_update(gl); });                   // Animate.
+    var time = ((new Date()).getTime() - startTime) / 1000;            // Set uniform variables
+    if (time > 30) { // refresh every half minute
+        time -= 30;
+        startTime += 30000;
+    }
+    gl.uniform1f(gl.uTime  , time);                                    // in fragment shader.
+    gl.uniform1f(gl.uIntensity  , intensity);                                    // in fragment shader.
+    gl.uniform3f(gl.uCursor, gl.cursor.x, gl.cursor.y, gl.cursor.z);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);                            // Render the square.
+    requestAnimFrame(function() { gl_update(gl); });                   // Animate.
 }
 
 // A browser-independent way to call a function after 1/60 second.
