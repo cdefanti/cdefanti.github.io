@@ -1,0 +1,166 @@
+<script src=lib1.js></script>
+
+<body bgcolor=black>
+<center>
+<p><p><p>
+<td><canvas id='canvas1' width=400 height=400></canvas></td>
+<p></p>
+<td><canvas id='canvas2' width=400 height=400></canvas></td>
+<p></p>
+<td><canvas id='canvas3' width=400 height=400></canvas></td>
+</center>
+</body>
+
+<script id='my_vertex_shader' type='x-shader/x-vertex'>
+   attribute vec3 aPosition;
+   varying   vec3 vPosition;
+   void main() {
+      gl_Position = vec4(aPosition, 1.0);
+      vPosition = aPosition;
+   }
+</script>
+
+<script id='frag1' type='x-shader/x-fragment'>
+    precision mediump float;
+    uniform float uTime;
+    uniform float uIntensity;
+    varying vec3  vPosition;
+
+    #define M_PI 3.1415926535897932384626433832795
+
+    // is v within a circle of center c and radius r?
+    bool circle(vec2 v, vec2 c, float r) {
+        return distance(v, c) <= r;
+    }
+
+    vec3 func(vec2 pos, float t, vec3 c) {
+        vec3 color = vec3(0);
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                float minx = (float(i) - abs(sin(3.*(t+float(i+j) / 30.0))) / 2.0) / 5.0 - 0.95;
+                float maxx = (float(i) + abs(sin(3.*(t+float(i+j) / 30.0))) / 2.0) / 5.0 - 0.95;
+                float miny = float(j) / 5.0 - 1.0;
+                float maxy = float(j+1) / 5.0 - 1.0;
+                if (pos.x >= minx && pos.x < maxx && pos.y >= miny && pos.y < maxy) {
+                    color = vec3(1.0 - float(i) / 10.0, float(j) / 10.0, float(i+j) / 20.0);
+                }
+            }
+        }
+        return color;
+    }
+
+    void main() {
+        vec2 pos = vPosition.xy;
+        vec3 color = vec3(0.0);
+        
+        float t = uTime;
+        color += func(pos, t, color);
+        gl_FragColor = vec4(color, 1.0);
+    }
+
+</script>
+
+<script id='frag2' type='x-shader/x-fragment'>
+    precision mediump float;
+    uniform float uTime;
+    uniform float uIntensity;
+    varying vec3  vPosition;
+
+    #define M_PI 3.1415926535897932384626433832795
+
+    // is v within a circle of center c and radius r?
+    bool circle(vec2 v, vec2 c, float r) {
+        return distance(v, c) <= r;
+    }
+
+    vec3 func(vec2 pos, float t, vec3 c) {
+        vec3 color;
+        const int n = 11;
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < 6; j++) {
+                if (mod(float((j + 1) / 2), 2.0) == mod(float((i + 1) / 2), 2.0)) {
+                    float t2 = t - float((i + 1) / 2) / 12.0 + float(j) / 2.0;
+                    float angle = float(i) / float(n) * M_PI;
+                    float x = float((i + 1) / 2) * cos(float(i) * M_PI) / 6.0;
+                    t2 = mod(t2, 3.0);
+                    float y = 0.0;
+                    if (t2 < sqrt(1.5)) {
+                        y = 1.5 - t2 * t2;
+                    } else {
+                        y = 1.5 * ((t2 - sqrt(1.5)) - (t2 - sqrt(1.5)) * (t2 - sqrt(1.5)));
+                    }
+                    //y = t;
+                    vec2 cpos = vec2(x, y);
+                    if (circle(pos, cpos, 0.075) && ! circle(pos, cpos, 0.04)) {
+                        color += c;
+                    }
+                }
+            }
+        }
+        return color;
+    }
+
+    void main() {
+        vec2 pos = vPosition.xy;
+        vec3 color = vec3(0.0);
+
+        float t = uTime;
+        for (int i = 0; i < 3; i++) {
+            color += func(pos, t + 0.03 * float(i), vec3(i == 2, i == 1, i == 0));
+        }
+        gl_FragColor = vec4(color, 1.0);
+    }
+
+</script>
+
+<script id='frag3' type='x-shader/x-fragment'>
+    precision mediump float;
+    uniform float uTime;
+    uniform float uIntensity;
+    varying vec3  vPosition;
+
+    #define M_PI 3.1415926535897932384626433832795
+
+    // is v within a circle of center c and radius r?
+    bool circle(vec2 v, vec2 c, float r) {
+        return distance(v, c) <= r;
+    }
+
+    vec3 func(vec2 pos, float t, vec3 c) {
+        vec3 color;
+        const int n = 13;
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                float x = -1.2 + float(i) / 5.0 + sin(M_PI / 3.0 * t + float(i) / 6.0 + float(j) / 6.0) / 6.0;
+                float y = -1.2 + float(j) / 5.0 + cos(M_PI / 3.0 * t + float(i) / 6.0 + float(j) / 6.0) / 6.0;
+                vec2 cpos = vec2(x, y);
+                if (circle(pos, cpos, 0.08) && ! circle(pos, cpos, 0.05)) {
+                    color += c;
+                }
+            }
+        }
+        return color;
+    }
+
+    void main() {
+        vec2 pos = vPosition.xy;
+        vec3 color = vec3(0.0);
+
+        float t = uTime;
+        for (int i = 0; i < 3; i++) {
+            color += func(pos, t + 0.15 * float(i), vec3(i == 2, i == 1, i == 0));
+        }
+        gl_FragColor = vec4(color, 1.0);
+    }
+
+</script>
+
+<script>
+start_gl('canvas1', document.getElementById('my_vertex_shader').innerHTML,
+    document.getElementById('frag1').innerHTML);
+start_gl('canvas2', document.getElementById('my_vertex_shader').innerHTML,
+    document.getElementById('frag2').innerHTML);
+start_gl('canvas3', document.getElementById('my_vertex_shader').innerHTML,
+    document.getElementById('frag3').innerHTML);
+</script>
+
