@@ -74,26 +74,15 @@
     }
 
     vec3 func(vec2 pos, float t, vec3 c) {
-        vec3 color;
-        const int n = 11;
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < 6; j++) {
-                if (mod(float((j + 1) / 2), 2.0) == mod(float((i + 1) / 2), 2.0)) {
-                    float t2 = t - float((i + 1) / 2) / 12.0 + float(j) / 2.0;
-                    float angle = float(i) / float(n) * M_PI;
-                    float x = float((i + 1) / 2) * cos(float(i) * M_PI) / 6.0;
-                    t2 = mod(t2, 3.0);
-                    float y = 0.0;
-                    if (t2 < sqrt(1.5)) {
-                        y = 1.5 - t2 * t2;
-                    } else {
-                        y = 1.5 * ((t2 - sqrt(1.5)) - (t2 - sqrt(1.5)) * (t2 - sqrt(1.5)));
-                    }
-                    //y = t;
-                    vec2 cpos = vec2(x, y);
-                    if (circle(pos, cpos, 0.075) && ! circle(pos, cpos, 0.04)) {
-                        color += c;
-                    }
+        vec3 color = vec3(0);
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                float minx = float(i) / 5.0 - 1.0;
+                float maxx = float(i+1) / 5.0 - 1.0;
+                float miny = 2.0 * sin(1. * t + float(i) / 20. - float(j) / 20.0) / 2.0 + float(j) / 5.0 - 2.0;
+                float maxy = 4.0 * sin(1. * t + float(i) / 20. - float(j) / 20.0) / 2.0 + float(j) / 5.0 - 2.0;
+                if (pos.x >= minx && pos.x < maxx && pos.y >= miny && pos.y < maxy) {
+                    color = vec3(1.0 - float(i) / 10.0, float(j) / 10.0, float(i+j) / 20.0);
                 }
             }
         }
@@ -103,11 +92,9 @@
     void main() {
         vec2 pos = vPosition.xy;
         vec3 color = vec3(0.0);
-
+        
         float t = uTime;
-        for (int i = 0; i < 3; i++) {
-            color += func(pos, t + 0.03 * float(i), vec3(i == 2, i == 1, i == 0));
-        }
+        color += func(pos, t, color);
         gl_FragColor = vec4(color, 1.0);
     }
 
@@ -127,15 +114,15 @@
     }
 
     vec3 func(vec2 pos, float t, vec3 c) {
-        vec3 color;
-        const int n = 13;
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
-                float x = -1.2 + float(i) / 5.0 + sin(M_PI / 3.0 * t + float(i) / 6.0 + float(j) / 6.0) / 6.0;
-                float y = -1.2 + float(j) / 5.0 + cos(M_PI / 3.0 * t + float(i) / 6.0 + float(j) / 6.0) / 6.0;
-                vec2 cpos = vec2(x, y);
-                if (circle(pos, cpos, 0.08) && ! circle(pos, cpos, 0.05)) {
-                    color += c;
+        vec3 color = vec3(0);
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                float minx = float(i) / 5.0 - 1.0;
+                float maxx = float(i+1) / 5.0 - 1.0;
+                float miny = 2.0 * sin(1. * t + float(i) / 20. - float(j) / 20.0) / 2.0 + float(j) / 5.0 - 2.0;
+                float maxy = 4.0 * sin(1. * t + float(i) / 20. - float(j) / 20.0) / 2.0 + float(j) / 5.0 - 2.0;
+                if (pos.x >= minx && pos.x < maxx && pos.y >= miny && pos.y < maxy) {
+                    color = vec3(1.0 - float(i) / 10.0, float(j) / 10.0, float(i+j) / 20.0);
                 }
             }
         }
@@ -144,12 +131,10 @@
 
     void main() {
         vec2 pos = vPosition.xy;
-        vec3 color = vec3(0.0);
-
+        vec3 color = vec3(0);
+        
         float t = uTime;
-        for (int i = 0; i < 3; i++) {
-            color += func(pos, t + 0.15 * float(i), vec3(i == 2, i == 1, i == 0));
-        }
+        color += func(pos, t, color);
         gl_FragColor = vec4(color, 1.0);
     }
 
