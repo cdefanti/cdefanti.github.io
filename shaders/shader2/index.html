@@ -37,8 +37,8 @@
         vec3 color = vec3(0);
         for (int i = 0; i < 10; i++) {
             for (int j = 0; j < 10; j++) {
-                float minx = (float(i) - abs(sin(3.*(t+float(i+j) / 30.0))) / 2.0) / 5.0 - 0.95;
-                float maxx = (float(i) + abs(sin(3.*(t+float(i+j) / 30.0))) / 2.0) / 5.0 - 0.95;
+                float minx = (float(i) - abs(sin(M_PI *(t+float(i+j) / 30.0))) / 2.0) / 5.0 - 0.95;
+                float maxx = (float(i) + abs(sin(M_PI *(t+float(i+j) / 30.0))) / 2.0) / 5.0 - 0.95;
                 float miny = float(j) / 5.0 - 1.0;
                 float maxy = float(j+1) / 5.0 - 1.0;
                 if (pos.x >= minx && pos.x < maxx && pos.y >= miny && pos.y < maxy) {
@@ -79,8 +79,8 @@
             for (int j = 0; j < 10; j++) {
                 float minx = float(i) / 5.0 - 1.0;
                 float maxx = float(i+1) / 5.0 - 1.0;
-                float miny = 2.0 * sin(1. * t + float(i) / 20. - float(j) / 20.0) / 2.0 + float(j) / 5.0 - 2.0;
-                float maxy = 4.0 * sin(1. * t + float(i) / 20. - float(j) / 20.0) / 2.0 + float(j) / 5.0 - 2.0;
+                float miny = 2.0 * sin((t + float(i) / 20. - float(j) / 20.0) * M_PI / 3.) / 2.0 + float(j) / 5.0 - 2.0;
+                float maxy = 4.0 * sin((t + float(i) / 20. - float(j) / 20.0) * M_PI / 3.) / 2.0 + float(j) / 5.0 - 2.0;
                 if (pos.x >= minx && pos.x < maxx && pos.y >= miny && pos.y < maxy) {
                     color = vec3(1.0 - float(i) / 10.0, float(j) / 10.0, float(i+j) / 20.0);
                 }
@@ -115,14 +115,14 @@
 
     vec3 func(vec2 pos, float t, vec3 c) {
         vec3 color = vec3(0);
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 11; i++) {
             for (int j = 0; j < 10; j++) {
-                float minx = float(i) / 5.0 - 1.0;
-                float maxx = float(i+1) / 5.0 - 1.0;
-                float miny = 2.0 * sin(1. * t + float(i) / 20. - float(j) / 20.0) / 2.0 + float(j) / 5.0 - 2.0;
-                float maxy = 4.0 * sin(1. * t + float(i) / 20. - float(j) / 20.0) / 2.0 + float(j) / 5.0 - 2.0;
+                float minx = float(i) / 5.5 - 1.0;
+                float maxx = float(i+1) / 5.5 - 1.0;
+                float miny = float(j) / 5.0 - 1.0;
+                float maxy = (float(j+1) - (1. - sin(2. * M_PI / 3. *(t - float((i-5)*(i-5)+(j-5)*(j-5)) / 20.)))) / 5.0 - 1.0;
                 if (pos.x >= minx && pos.x < maxx && pos.y >= miny && pos.y < maxy) {
-                    color = vec3(1.0 - float(i) / 10.0, float(j) / 10.0, float(i+j) / 20.0);
+                    color = vec3(1.0 - float(i) / 11.0, float(j) / 11.0, float(i+j) / 22.0);
                 }
             }
         }
